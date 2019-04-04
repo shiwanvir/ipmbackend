@@ -1,15 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Org;
+namespace App\Http\Controllers\Merchandising;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 use App\Http\Controllers\Controller;
-use App\Models\Org\Section;
+use App\Models\Merchandising\ColorOption;
+use Exception;
 
-class SectionController extends Controller
+class ColorOptionController extends Controller
 {
     public function __construct()
     {
@@ -17,7 +18,7 @@ class SectionController extends Controller
       $this->middleware('jwt.verify', ['except' => ['index']]);
     }
 
-    //get Section list
+    //get Origin Type list
     public function index(Request $request)
     {
       $type = $request->type;
@@ -39,71 +40,71 @@ class SectionController extends Controller
     }
 
 
-    //create a Section
+    //create a Origin Type
     public function store(Request $request)
     {
-      $section = new Section();
-      if($section->validate($request->all()))
+      $colorOption = new ColorOption;
+      if($colorOption->validate($request->all()))
       {
-        $section->fill($request->all());
-        $section->status = 1;
-        $section->save();
+        $colorOption->fill($request->all());
+        $colorOption->status = 1;
+        $colorOption->save();
 
         return response([ 'data' => [
-          'message' => 'Section was saved successfully',
-          'section' => $section
+          'message' => 'Color Option was saved successfully',
+          'originType' => $colorOption
           ]
         ], Response::HTTP_CREATED );
       }
       else
       {
-          $errors = $section->errors();// failure, get errors
+          $errors = $colorOption->errors();// failure, get errors
           return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //get a Section
+    //get a Origin Type
     public function show($id)
     {
-      $section = Section::find($id);
-      if($section == null)
-        throw new ModelNotFoundException("Requested section not found", 1);
+      $colorOption = ColorOption::find($id);
+      if($colorOption == null)
+        throw new ModelNotFoundException("Requested Color Option not found", 1);
       else
-        return response([ 'data' => $section ]);
+        return response([ 'data' => $colorOption ]);
     }
 
 
-    //update a Section
+    //update a Origin Type
     public function update(Request $request, $id)
     {
-      $section = Section::find($id);
-      if($section->validate($request->all()))
+      $colorOption = ColorOption::find($id);
+      if($colorOption->validate($request->all()))
       {
-        $section->fill($request->except('section_code'));
-        $section->save();
+        $colorOption->fill($request->all());
+        $colorOption->save();
 
         return response([ 'data' => [
-          'message' => 'Section was updated successfully',
-          'section' => $section
+          'message' => 'Color Option was updated successfully',
+          'colorOption' => $colorOption
         ]]);
       }
       else
       {
-        $errors = $section->errors();// failure, get errors
+        $errors = $colorOption->errors();// failure, get errors
         return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //deactivate a Section
+    //deactivate a Origin Type
     public function destroy($id)
     {
-      $section = Section::where('section_id', $id)->update(['status' => 0]);
+      $colorOption = ColorOption::where('col_opt_id', $id)->update(['status' => 0]);
       return response([
         'data' => [
-          'message' => 'Section was deactivated successfully.',
-          'section' => $section
+          'message' => 'Color Option was deactivated successfully.',
+          'colorOption' => $colorOption
         ]
       ] , Response::HTTP_NO_CONTENT);
     }
@@ -114,23 +115,23 @@ class SectionController extends Controller
       $for = $request->for;
       if($for == 'duplicate')
       {
-        return response($this->validate_duplicate_code($request->section_id , $request->section_code));
+        return response($this->validate_duplicate_code($request->col_opt_id , $request->color_option));
       }
     }
 
 
-    //check Section code already exists
+    //check OriginType code already exists
     private function validate_duplicate_code($id , $code)
     {
-      $section = Section::where('section_code','=',$code)->first();
-      if($section == null){
+      $colorOption = ColorOption::where('color_option','=',$code)->first();
+      if($colorOption == null){
         return ['status' => 'success'];
       }
-      else if($section->section_id == $id){
+      else if($colorOption->col_opt_id == $id){
         return ['status' => 'success'];
       }
       else {
-        return ['status' => 'error','message' => 'Section code already exists'];
+        return ['status' => 'error','message' => 'Color Option already exists'];
       }
     }
 
@@ -138,14 +139,13 @@ class SectionController extends Controller
     //get filtered fields only
     private function list($active = 0 , $fields = null)
     {
-        $fields = "section_name,section_id";
       $query = null;
       if($fields == null || $fields == '') {
-        $query = Section::select('*');
+        $query = ColorOption::select('*');
       }
       else{
         $fields = explode(',', $fields);
-        $query = Section::select($fields);
+        $query =ColorOption::select($fields);
         if($active != null && $active != ''){
           $query->where([['status', '=', $active]]);
         }
@@ -153,16 +153,16 @@ class SectionController extends Controller
       return $query->get();
     }
 
-    //search Section for autocomplete
+    //search Origin Type for autocomplete
     private function autocomplete_search($search)
   	{
-  		$section_lists = Section::select('section_id','section_name')
-  		->where([['section_name', 'like', '%' . $search . '%'],]) ->get();
-  		return $section_lists;
+  		$color_option_lists = ColorOption::select('col_opt_id','color_option')
+  		->where([['color_option', 'like', '%' . $search . '%'],]) ->get();
+  		return $color_option_lists;
   	}
 
 
-    //get searched Sections for datatable plugin format
+    //get searched OriginTypes for datatable plugin format
     private function datatable_search($data)
     {
       $start = $data['start'];
@@ -173,21 +173,18 @@ class SectionController extends Controller
       $order_column = $data['columns'][$order['column']]['data'];
       $order_type = $order['dir'];
 
-      $section_list = Section::select('*')
-      ->where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
+      $color_option_lists =ColorOption::select('*')
+      ->where('color_option'  , 'like', $search.'%' )
       ->orderBy($order_column, $order_type)
       ->offset($start)->limit($length)->get();
 
-      $section_count = Section::where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
-      ->count();
+    $color_option_count = ColorOption::where('color_option'  , 'like', $search.'%' )->count();
 
       return [
           "draw" => $draw,
-          "recordsTotal" => $section_count,
-          "recordsFiltered" => $section_count,
-          "data" => $section_list
+          "recordsTotal" => $color_option_count,
+          "recordsFiltered" =>$color_option_count,
+          "data" => $color_option_lists
       ];
     }
 

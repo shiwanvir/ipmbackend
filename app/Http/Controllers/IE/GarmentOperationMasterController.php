@@ -1,15 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Org;
+namespace App\Http\Controllers\IE;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 use App\Http\Controllers\Controller;
-use App\Models\Org\Section;
+use App\Models\IE\GarmentOperationMaster;
+use Exception;
 
-class SectionController extends Controller
+class GarmentOperationMasterController extends Controller
 {
     public function __construct()
     {
@@ -17,7 +18,7 @@ class SectionController extends Controller
       $this->middleware('jwt.verify', ['except' => ['index']]);
     }
 
-    //get Section list
+    //get Service Type list
     public function index(Request $request)
     {
       $type = $request->type;
@@ -39,71 +40,54 @@ class SectionController extends Controller
     }
 
 
-    //create a Section
+    //create a Service Type
     public function store(Request $request)
     {
-      $section = new Section();
-      if($section->validate($request->all()))
+      $garmentOperation = new GarmentOperationMaster();
+      if($garmentOperation->validate($request->all()))
       {
-        $section->fill($request->all());
-        $section->status = 1;
-        $section->save();
+        $garmentOperation->fill($request->all());
+        $garmentOperation->status = 1;
+        $garmentOperation->save();
 
         return response([ 'data' => [
-          'message' => 'Section was saved successfully',
-          'section' => $section
+          'message' => 'Garment Operation successfully',
+          'garmentOperation' => $garmentOperation
           ]
         ], Response::HTTP_CREATED );
       }
       else
       {
-          $errors = $section->errors();// failure, get errors
+          $errors = $garmentOperation->errors();// failure, get errors
           return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //get a Section
+    //get a Service Type
     public function show($id)
     {
-      $section = Section::find($id);
-      if($section == null)
-        throw new ModelNotFoundException("Requested section not found", 1);
+
+      $garmentOperation = GarmentOperationMaster::find($id);
+      if($garmentOperation == null)
+        throw new ModelNotFoundException("Requested Garment Operation not found", 1);
       else
-        return response([ 'data' => $section ]);
+        return response([ 'data' => $garmentOperation ]);
     }
 
 
-    //update a Section
-    public function update(Request $request, $id)
-    {
-      $section = Section::find($id);
-      if($section->validate($request->all()))
-      {
-        $section->fill($request->except('section_code'));
-        $section->save();
-
-        return response([ 'data' => [
-          'message' => 'Section was updated successfully',
-          'section' => $section
-        ]]);
-      }
-      else
-      {
-        $errors = $section->errors();// failure, get errors
-        return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
-      }
-    }
 
 
-    //deactivate a Section
+
+
+    //deactivate a Service Type
     public function destroy($id)
     {
-      $section = Section::where('section_id', $id)->update(['status' => 0]);
+      $garmentOperation = GarmentOperationMaster::where('garment_operation_id', $id)->update(['status' => 0]);
       return response([
         'data' => [
-          'message' => 'Section was deactivated successfully.',
-          'section' => $section
+          'message' => 'Garment Operation was deactivated successfully.',
+          'garmentOperation' => $garmentOperation
         ]
       ] , Response::HTTP_NO_CONTENT);
     }
@@ -114,23 +98,23 @@ class SectionController extends Controller
       $for = $request->for;
       if($for == 'duplicate')
       {
-        return response($this->validate_duplicate_code($request->section_id , $request->section_code));
+        return response($this->validate_duplicate_code($request->garment_operation_id , $request->garment_operation_name));
       }
     }
 
 
-    //check Section code already exists
+    //check Service Type code already exists
     private function validate_duplicate_code($id , $code)
     {
-      $section = Section::where('section_code','=',$code)->first();
-      if($section == null){
+      $garmentOperation = GarmentOperationMaster::where('garment_operation_name','=',$code)->first();
+      if($garmentOperation == null){
         return ['status' => 'success'];
       }
-      else if($section->section_id == $id){
+      else if($garmentOperation->garment_operation_id == $id){
         return ['status' => 'success'];
       }
       else {
-        return ['status' => 'error','message' => 'Section code already exists'];
+        return ['status' => 'error','message' => 'Garment Operation already exists'];
       }
     }
 
@@ -138,14 +122,13 @@ class SectionController extends Controller
     //get filtered fields only
     private function list($active = 0 , $fields = null)
     {
-        $fields = "section_name,section_id";
       $query = null;
       if($fields == null || $fields == '') {
-        $query = Section::select('*');
+        $query = GarmentOperationMaster::select('*');
       }
       else{
         $fields = explode(',', $fields);
-        $query = Section::select($fields);
+        $query = GarmentOperationMaster::select($fields);
         if($active != null && $active != ''){
           $query->where([['status', '=', $active]]);
         }
@@ -153,16 +136,16 @@ class SectionController extends Controller
       return $query->get();
     }
 
-    //search Section for autocomplete
+    //search Service Type for autocomplete
     private function autocomplete_search($search)
   	{
-  		$section_lists = Section::select('section_id','section_name')
-  		->where([['section_name', 'like', '%' . $search . '%'],]) ->get();
-  		return $section_lists;
+  		$garment_operation_lists = GarmentOperationMaster::select('garment_operation_id','garment_operation_name')
+  		->where([['garment_operation_name', 'like', '%' . $search . '%'],]) ->get();
+  		return $garment_operation_lists;
   	}
 
 
-    //get searched Sections for datatable plugin format
+    //get searched Service Types for datatable plugin format
     private function datatable_search($data)
     {
       $start = $data['start'];
@@ -173,21 +156,19 @@ class SectionController extends Controller
       $order_column = $data['columns'][$order['column']]['data'];
       $order_type = $order['dir'];
 
-      $section_list = Section::select('*')
-      ->where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
+      $garment_operation_list = GarmentOperationMaster::select('*')
+      ->where('garment_operation_name'  , 'like', $search.'%' )
       ->orderBy($order_column, $order_type)
       ->offset($start)->limit($length)->get();
 
-      $section_count = Section::where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
+      $garment_operation_count = GarmentOperationMaster::where('garment_operation_name'  , 'like', $search.'%' )
       ->count();
 
       return [
           "draw" => $draw,
-          "recordsTotal" => $section_count,
-          "recordsFiltered" => $section_count,
-          "data" => $section_list
+          "recordsTotal" => $garment_operation_count,
+          "recordsFiltered" => $garment_operation_count,
+          "data" => $garment_operation_list
       ];
     }
 

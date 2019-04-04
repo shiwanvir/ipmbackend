@@ -1,15 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Org;
+namespace App\Http\Controllers\Merchandising;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 use App\Http\Controllers\Controller;
-use App\Models\Org\Section;
+use App\Models\Merchandising\BOMStage;
+use Exception;
 
-class SectionController extends Controller
+class BOMStageController extends Controller
 {
     public function __construct()
     {
@@ -17,7 +18,7 @@ class SectionController extends Controller
       $this->middleware('jwt.verify', ['except' => ['index']]);
     }
 
-    //get Section list
+    //get Feature list
     public function index(Request $request)
     {
       $type = $request->type;
@@ -39,71 +40,71 @@ class SectionController extends Controller
     }
 
 
-    //create a Section
+    //create a BOMStage
     public function store(Request $request)
     {
-      $section = new Section();
-      if($section->validate($request->all()))
+      $bomstage = new BOMStage();
+      if($bomstage->validate($request->all()))
       {
-        $section->fill($request->all());
-        $section->status = 1;
-        $section->save();
+        $bomstage->fill($request->all());
+        $bomstage->status = 1;
+        $bomstage->save();
 
         return response([ 'data' => [
-          'message' => 'Section was saved successfully',
-          'section' => $section
+          'message' => 'BOM Stage was saved successfully',
+          'bomstage' => $bomstage
           ]
         ], Response::HTTP_CREATED );
       }
       else
       {
-          $errors = $section->errors();// failure, get errors
+          $errors = $bomstage->errors();// failure, get errors
           return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //get a Section
+    //get a Feature
     public function show($id)
     {
-      $section = Section::find($id);
-      if($section == null)
-        throw new ModelNotFoundException("Requested section not found", 1);
+      $bomstage = BOMStage::find($id);
+      if($bomstage == null)
+        throw new ModelNotFoundException("Requested BOM Stage not found", 1);
       else
-        return response([ 'data' => $section ]);
+        return response([ 'data' => $bomstage ]);
     }
 
 
-    //update a Section
+    //update a Feature
     public function update(Request $request, $id)
     {
-      $section = Section::find($id);
-      if($section->validate($request->all()))
+      $bomstage = BOMStage::find($id);
+      if($bomstage->validate($request->all()))
       {
-        $section->fill($request->except('section_code'));
-        $section->save();
+        $bomstage->fill($request->all());
+        $bomstage->save();
 
         return response([ 'data' => [
-          'message' => 'Section was updated successfully',
-          'section' => $section
+          'message' => 'BOM Stage was updated successfully',
+          'bomstage' => $bomstage
         ]]);
       }
       else
       {
-        $errors = $section->errors();// failure, get errors
+        $errors = $bomstage->errors();// failure, get errors
         return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //deactivate a Section
+    //deactivate a Feature
     public function destroy($id)
     {
-      $section = Section::where('section_id', $id)->update(['status' => 0]);
+      $bomstage = BOMStage::where('bom_stage_id', $id)->update(['status' => 0]);
       return response([
         'data' => [
-          'message' => 'Section was deactivated successfully.',
-          'section' => $section
+          'message' => 'BOM Stage was deactivated successfully.',
+          'bomstage' => $bomstage
         ]
       ] , Response::HTTP_NO_CONTENT);
     }
@@ -114,23 +115,23 @@ class SectionController extends Controller
       $for = $request->for;
       if($for == 'duplicate')
       {
-        return response($this->validate_duplicate_code($request->section_id , $request->section_code));
+        return response($this->validate_duplicate_code($request->bom_stage_id , $request->bom_stage_description));
       }
     }
 
 
-    //check Section code already exists
+    //check Feature code already exists
     private function validate_duplicate_code($id , $code)
     {
-      $section = Section::where('section_code','=',$code)->first();
-      if($section == null){
+      $bomstage = BOMStage::where('bom_stage_description','=',$code)->first();
+      if($bomstage == null){
         return ['status' => 'success'];
       }
-      else if($section->section_id == $id){
+      else if($bomstage->bom_stage_id == $id){
         return ['status' => 'success'];
       }
       else {
-        return ['status' => 'error','message' => 'Section code already exists'];
+        return ['status' => 'error','message' => 'BOM Stage already exists'];
       }
     }
 
@@ -138,14 +139,13 @@ class SectionController extends Controller
     //get filtered fields only
     private function list($active = 0 , $fields = null)
     {
-        $fields = "section_name,section_id";
       $query = null;
       if($fields == null || $fields == '') {
-        $query = Section::select('*');
+        $query = BOMStage::select('*');
       }
       else{
         $fields = explode(',', $fields);
-        $query = Section::select($fields);
+        $query = BOMStage::select($fields);
         if($active != null && $active != ''){
           $query->where([['status', '=', $active]]);
         }
@@ -153,16 +153,16 @@ class SectionController extends Controller
       return $query->get();
     }
 
-    //search Section for autocomplete
+    //search Size for autocomplete
     private function autocomplete_search($search)
   	{
-  		$section_lists = Section::select('section_id','section_name')
-  		->where([['section_name', 'like', '%' . $search . '%'],]) ->get();
-  		return $section_lists;
+  		$bomstage_lists = BOMStage::select('bom_stage_id','bom_stage_description')
+  		->where([['bom_stage_description', 'like', '%' . $search . '%']]) ->get();
+  		return $bomstage_lists;
   	}
 
 
-    //get searched Sections for datatable plugin format
+    //get searched Features for datatable plugin format
     private function datatable_search($data)
     {
       $start = $data['start'];
@@ -173,21 +173,19 @@ class SectionController extends Controller
       $order_column = $data['columns'][$order['column']]['data'];
       $order_type = $order['dir'];
 
-      $section_list = Section::select('*')
-      ->where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
+      $bomstage_list = BOMStage::select('*')
+      ->where('bom_stage_description'  , 'like', $search.'%' )
       ->orderBy($order_column, $order_type)
       ->offset($start)->limit($length)->get();
 
-      $section_count = Section::where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
+      $bomstage_count = BOMStage::where('bom_stage_description'  , 'like', $search.'%' )
       ->count();
 
       return [
           "draw" => $draw,
-          "recordsTotal" => $section_count,
-          "recordsFiltered" => $section_count,
-          "data" => $section_list
+          "recordsTotal" => $bomstage_count,
+          "recordsFiltered" => $bomstage_count,
+          "data" => $bomstage_list
       ];
     }
 

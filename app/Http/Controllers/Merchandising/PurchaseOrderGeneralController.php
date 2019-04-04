@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Org;
+namespace App\Http\Controllers\Merchandising;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -8,34 +8,36 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 use App\Http\Controllers\Controller;
-use App\Models\Org\Customer;
-use App\Models\Org\Division;
+use App\Models\Merchandising\PurchaseOrderGeneral;
+//use App\Libraries\UniqueIdGenerator;
+//use App\Models\Merchandising\StyleCreation;
 
-use App\Models\Finance\Accounting\PaymentTerm;
-use App\Currency;
-use App\Http\Resources\CustomerResource;
-
-
-
-class CustomerController extends Controller
+class PurchaseOrderGeneralController extends Controller
 {
     public function __construct()
     {
       //add functions names to 'except' paramert to skip authentication
-//      $this->middleware('jwt.verify', ['except' => ['index']]);
+      $this->middleware('jwt.verify', ['except' => ['index']]);
     }
 
     //get customer list
     public function index(Request $request)
     {
+      //$id_generator = new UniqueIdGenerator();
+      //echo $id_generator->generateCustomerOrderId('CUSTOMER_ORDER' , 1);
+      //echo UniqueIdGenerator::generateUniqueId('CUSTOMER_ORDER' , 2 , 'FDN');
       $type = $request->type;
-      if($type == 'datatable')   {
+      if($type == 'datatable') {
         $data = $request->all();
         return response($this->datatable_search($data));
       }
       else if($type == 'auto')    {
         $search = $request->search;
         return response($this->autocomplete_search($search));
+      }
+      else if($type == 'style')    {
+        $search = $request->search;
+        return response($this->style_search($search));
       }
       else{
         return response([]);
@@ -46,22 +48,23 @@ class CustomerController extends Controller
     //create a customer
     public function store(Request $request)
     {
-      $customer = new Customer();
-      if($customer->validate($request->all()))
+      $order = new PurchaseOrderGeneral();
+      if($order->validate($request->all()))
       {
-        $customer->fill($request->all());
-        $customer->status = 1;
-        $customer->save();
+        $order->fill($request->all());
+        $order->po_status = 'PLANNED';
+        $order->save();
 
         return response([ 'data' => [
-          'message' => 'Customer was saved successfully',
-          'customer' => $customer
+          'message' => 'Purchase order was saved successfully',
+          'savepo' => $order,
+          'status' => 'PLANNED'
           ]
         ], Response::HTTP_CREATED );
       }
       else
       {
-          $errors = $customer->errors();// failure, get errors
+          $errors = $order->errors();// failure, get errors
           return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
@@ -70,31 +73,31 @@ class CustomerController extends Controller
     //get a customer
     public function show($id)
     {
-      $customer = Customer::with(['customerCountry','currency','divisions'])->find($id);
+      $customer = PurchaseOrderGeneral::with(['currency','location','supplier'])->find($id);
       if($customer == null)
-        throw new ModelNotFoundException("Requested customer not found", 1);
+        throw new ModelNotFoundException("Requested PO not found", 1);
       else
         return response([ 'data' => $customer ]);
     }
 
 
     //update a customer
-    public function update(Request $request, $id)
+   public function update(Request $request, $id)
     {
-      $customer = Customer::find($id);
-      if($customer->validate($request->all()))
+      $pOrder = PurchaseOrderGeneral::find($id);
+      if($pOrder->validate($request->all()))
       {
-        $customer->fill($request->except('customer_code'));
-        $customer->save();
+        $pOrder->fill($request->except('customer_code'));
+        $pOrder->save();
 
         return response([ 'data' => [
-          'message' => 'Customer was updated successfully',
-          'customer' => $customer
+          'message' => 'Purchase order was updated successfully',
+          'customer' => $pOrder
         ]]);
       }
       else
       {
-        $errors = $customer->errors();// failure, get errors
+        $errors = $pOrder->errors();// failure, get errors
         return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
@@ -103,28 +106,28 @@ class CustomerController extends Controller
     //deactivate a customer
     public function destroy($id)
     {
-      $customer = Customer::where('customer_id', $id)->update(['status' => 0]);
+      /*$customer = Customer::where('customer_id', $id)->update(['status' => 0]);
       return response([
         'data' => [
           'message' => 'Customer was deactivated successfully.',
           'customer' => $customer
         ]
-      ] , Response::HTTP_NO_CONTENT);
+      ] , Response::HTTP_NO_CONTENT);*/
     }
 
 
     //validate anything based on requirements
     public function validate_data(Request $request){
-      $for = $request->for;
+      /*$for = $request->for;
       if($for == 'duplicate')
       {
         return response($this->validate_duplicate_code($request->customer_id , $request->customer_code));
-      }
+      }*/
     }
 
 
     public function customer_divisions(Request $request) {
-        $type = $request->type;
+        /*$type = $request->type;
         $customer_id = $request->customer_id;
 
         if($type == 'selected')
@@ -146,13 +149,13 @@ class CustomerController extends Controller
               ->where('customer_id', $customer_id);
           })->get();
           return response([ 'data' => $notSelected]);
-        }
+        }*/
 
     }
 
     public function save_customer_divisions(Request $request)
     {
-      $customer_id = $request->get('customer_id');
+      /*$customer_id = $request->get('customer_id');
       $divisions = $request->get('divisions');
       if($customer_id != '')
       {
@@ -173,14 +176,14 @@ class CustomerController extends Controller
       }
       else {
         throw new ModelNotFoundException("Requested customer not found", 1);
-      }
+      }*/
     }
 
 
     //check customer code already exists
     private function validate_duplicate_code($id , $code)
     {
-      $customer = Customer::where('customer_code','=',$code)->first();
+      /*$customer = Customer::where('customer_code','=',$code)->first();
       if($customer == null){
         return ['status' => 'success'];
       }
@@ -189,16 +192,25 @@ class CustomerController extends Controller
       }
       else {
         return ['status' => 'error','message' => 'Customer code already exists'];
-      }
+      }*/
     }
 
 
     //search customer for autocomplete
     private function autocomplete_search($search)
   	{
-  		$customer_lists = Customer::select('customer_id','customer_name')
+  		/*$customer_lists = Customer::select('customer_id','customer_name')
   		->where([['customer_name', 'like', '%' . $search . '%'],]) ->get();
-  		return $customer_lists;
+  		return $customer_lists;*/
+  	}
+
+
+    //search customer for autocomplete
+    private function style_search($search)
+  	{
+  	/*	$style_lists = StyleCreation::select('style_id','style_no','customer_id')
+  		->where([['style_no', 'like', '%' . $search . '%'],]) ->get();
+  		return $style_lists;*/
   	}
 
 
@@ -213,16 +225,25 @@ class CustomerController extends Controller
       $order_column = $data['columns'][$order['column']]['data'];
       $order_type = $order['dir'];
 
-      $customer_list = Customer::select('*')
-      ->where('customer_code'  , 'like', $search.'%' )
-      ->orWhere('customer_name'  , 'like', $search.'%' )
-      ->orWhere('customer_short_name'  , 'like', $search.'%' )
+      $customer_list = PurchaseOrderGeneral::join('org_location', 'org_location.loc_id', '=', 'merc_po_order_general_header.po_deli_loc')
+	  ->join('org_supplier', 'org_supplier.supplier_id', '=', 'merc_po_order_general_header.po_sup_code')
+      ->join('fin_currency', 'fin_currency.currency_id', '=', 'merc_po_order_general_header.po_def_cur')
+	  ->select('merc_po_order_general_header.*','org_location.loc_name','org_supplier.supplier_name',
+          'fin_currency.currency_code')
+      ->where('po_number'  , 'like', $search.'%' )
+      ->orWhere('supplier_name'  , 'like', $search.'%' )
+      
+	  ->orWhere('loc_name'  , 'like', $search.'%' )
       ->orderBy($order_column, $order_type)
       ->offset($start)->limit($length)->get();
 
-      $customer_count = Customer::where('customer_code'  , 'like', $search.'%' )
-      ->orWhere('customer_name'  , 'like', $search.'%' )
-      ->orWhere('customer_short_name'  , 'like', $search.'%' )
+      $customer_count = PurchaseOrderGeneral::join('org_location', 'org_location.loc_id', '=', 'merc_po_order_general_header.po_deli_loc')
+	  ->join('org_supplier', 'org_supplier.supplier_id', '=', 'merc_po_order_general_header.po_sup_code')
+      ->join('fin_currency', 'fin_currency.currency_id', '=', 'merc_po_order_general_header.po_def_cur')
+      ->where('po_number'  , 'like', $search.'%' )
+      ->orWhere('supplier_name'  , 'like', $search.'%' )
+
+	  ->orWhere('loc_name'  , 'like', $search.'%' )
       ->count();
 
       return [
@@ -232,57 +253,5 @@ class CustomerController extends Controller
           "data" => $customer_list
       ];
     }
-
-
-
-
-
-
-//    public function loadCustomer(Request $request) {
-//        	}
-//    print_r(Customer::where('customer_name', 'LIKE', '%'.$request->search.'%')->get());exit;
-
-
-
-   public function loadCustomer(Request $request) {
-
-        try{
-            echo json_encode(Customer::where('customer_name', 'LIKE', '%'.$request->search.'%')->get());
-//            return CustomerResource::collection(Customer::where('customer_name', 'LIKE', '%'.$request->search.'%')->get() );
-        }
-        catch (JWTException $e) {
-            // something went wrong whilst attempting to encode the token
-            return response()->json(['error' => 'could_not_create_token'], 500);
-        }
-   }
-
-    public function loadCustomerDivision(Request $request) {
-
-        $customer_id = $request->get('customer_id');
-
-        $divisions=DB::table('cust_customer')
-            ->join('org_customer_divisions', 'cust_customer.customer_id', '=', 'org_customer_divisions.customer_id')
-            ->join('cust_division', 'org_customer_divisions.division_id', '=', 'cust_division.division_id')
-            ->select('org_customer_divisions.id AS division_id','cust_division.division_description')
-            ->where('cust_customer.status','<>', 0)
-            ->where('cust_customer.customer_id','=',$customer_id)
-            ->get()->toArray();
-//        print_r($divisions);exit;
-        $data=array();
-        foreach ($divisions as $division){
-            array_push($data,$division);
-        }
-        echo json_encode($data);
-
-    }
-//        $customer = Customer::find($customer_id);
-//        $divisions= $customer->divisions()->get();
-//        $data=array();
-//        foreach ($divisions as $division){
-//            array_push($data,$division);
-//        }
-//        echo json_encode($divisions);
-
-//    }
 
 }

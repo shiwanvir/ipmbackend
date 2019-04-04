@@ -1,15 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Org;
+namespace App\Http\Controllers\IE;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 use App\Http\Controllers\Controller;
-use App\Models\Org\Section;
+use App\Models\IE\ServiceType;
+use Exception;
 
-class SectionController extends Controller
+class ServiceTypeController extends Controller
 {
     public function __construct()
     {
@@ -17,7 +18,7 @@ class SectionController extends Controller
       $this->middleware('jwt.verify', ['except' => ['index']]);
     }
 
-    //get Section list
+    //get Service Type list
     public function index(Request $request)
     {
       $type = $request->type;
@@ -39,71 +40,72 @@ class SectionController extends Controller
     }
 
 
-    //create a Section
+    //create a Service Type
     public function store(Request $request)
     {
-      $section = new Section();
-      if($section->validate($request->all()))
+      $servicetype = new ServiceType();
+      if($servicetype->validate($request->all()))
       {
-        $section->fill($request->all());
-        $section->status = 1;
-        $section->save();
+        $servicetype->fill($request->all());
+        $servicetype->status = 1;
+        $servicetype->save();
 
         return response([ 'data' => [
-          'message' => 'Section was saved successfully',
-          'section' => $section
+          'message' => 'Service Type was saved successfully',
+          'servicetype' => $servicetype
           ]
         ], Response::HTTP_CREATED );
       }
       else
       {
-          $errors = $section->errors();// failure, get errors
+          $errors = $servicetype->errors();// failure, get errors
           return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //get a Section
+    //get a Service Type
     public function show($id)
     {
-      $section = Section::find($id);
-      if($section == null)
-        throw new ModelNotFoundException("Requested section not found", 1);
+
+      $servicetype = ServiceType::find($id);
+      if($servicetype == null)
+        throw new ModelNotFoundException("Requested service type not found", 1);
       else
-        return response([ 'data' => $section ]);
+        return response([ 'data' => $servicetype ]);
     }
 
 
-    //update a Section
+    //update a Service Type
     public function update(Request $request, $id)
     {
-      $section = Section::find($id);
-      if($section->validate($request->all()))
+      $servicetype = ServiceType::find($id);
+      if($servicetype->validate($request->all()))
       {
-        $section->fill($request->except('section_code'));
-        $section->save();
+        $servicetype->fill($request->except('service_type_code'));
+        $servicetype->save();
 
         return response([ 'data' => [
-          'message' => 'Section was updated successfully',
-          'section' => $section
+          'message' => 'Service Type was updated successfully',
+          'servicetype' => $servicetype
         ]]);
       }
       else
       {
-        $errors = $section->errors();// failure, get errors
+        $errors = $servicetype->errors();// failure, get errors
         return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //deactivate a Section
+    //deactivate a Service Type
     public function destroy($id)
     {
-      $section = Section::where('section_id', $id)->update(['status' => 0]);
+      $servicetype = ServiceType::where('service_type_id', $id)->update(['status' => 0]);
       return response([
         'data' => [
-          'message' => 'Section was deactivated successfully.',
-          'section' => $section
+          'message' => 'Service Type was deactivated successfully.',
+          'servicetype' => $servicetype
         ]
       ] , Response::HTTP_NO_CONTENT);
     }
@@ -114,23 +116,23 @@ class SectionController extends Controller
       $for = $request->for;
       if($for == 'duplicate')
       {
-        return response($this->validate_duplicate_code($request->section_id , $request->section_code));
+        return response($this->validate_duplicate_code($request->service_type_id , $request->service_type_code));
       }
     }
 
 
-    //check Section code already exists
+    //check Service Type code already exists
     private function validate_duplicate_code($id , $code)
     {
-      $section = Section::where('section_code','=',$code)->first();
-      if($section == null){
+      $servicetype = ServiceType::where('service_type_code','=',$code)->first();
+      if($servicetype == null){
         return ['status' => 'success'];
       }
-      else if($section->section_id == $id){
+      else if($servicetype->service_type_id == $id){
         return ['status' => 'success'];
       }
       else {
-        return ['status' => 'error','message' => 'Section code already exists'];
+        return ['status' => 'error','message' => 'Service Type code already exists'];
       }
     }
 
@@ -138,14 +140,13 @@ class SectionController extends Controller
     //get filtered fields only
     private function list($active = 0 , $fields = null)
     {
-        $fields = "section_name,section_id";
       $query = null;
       if($fields == null || $fields == '') {
-        $query = Section::select('*');
+        $query = ServiceType::select('*');
       }
       else{
         $fields = explode(',', $fields);
-        $query = Section::select($fields);
+        $query = ServiceType::select($fields);
         if($active != null && $active != ''){
           $query->where([['status', '=', $active]]);
         }
@@ -153,16 +154,16 @@ class SectionController extends Controller
       return $query->get();
     }
 
-    //search Section for autocomplete
+    //search Service Type for autocomplete
     private function autocomplete_search($search)
   	{
-  		$section_lists = Section::select('section_id','section_name')
-  		->where([['section_name', 'like', '%' . $search . '%'],]) ->get();
-  		return $section_lists;
+  		$service_type_lists = ServiceType::select('service_type_id','service_type_code')
+  		->where([['service_type_code', 'like', '%' . $search . '%'],]) ->get();
+  		return $service_type_lists;
   	}
 
 
-    //get searched Sections for datatable plugin format
+    //get searched Service Types for datatable plugin format
     private function datatable_search($data)
     {
       $start = $data['start'];
@@ -173,21 +174,21 @@ class SectionController extends Controller
       $order_column = $data['columns'][$order['column']]['data'];
       $order_type = $order['dir'];
 
-      $section_list = Section::select('*')
-      ->where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
+      $service_type_list = ServiceType::select('*')
+      ->where('service_type_code'  , 'like', $search.'%' )
+      ->orWhere('service_type_description'  , 'like', $search.'%' )
       ->orderBy($order_column, $order_type)
       ->offset($start)->limit($length)->get();
 
-      $section_count = Section::where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
+      $service_type_count = ServiceType::where('service_type_code'  , 'like', $search.'%' )
+      ->orWhere('service_type_description'  , 'like', $search.'%' )
       ->count();
 
       return [
           "draw" => $draw,
-          "recordsTotal" => $section_count,
-          "recordsFiltered" => $section_count,
-          "data" => $section_list
+          "recordsTotal" => $service_type_count,
+          "recordsFiltered" => $service_type_count,
+          "data" => $service_type_list
       ];
     }
 

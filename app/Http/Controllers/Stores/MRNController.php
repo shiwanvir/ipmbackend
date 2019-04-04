@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Http\Controllers\Org;
+namespace App\Http\Controllers\Org\Location;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 use App\Http\Controllers\Controller;
-use App\Models\Org\Section;
+use App\Models\Org\Location\Cluster;
 
-class SectionController extends Controller
+class ClusterController extends Controller
 {
     public function __construct()
     {
@@ -17,7 +17,7 @@ class SectionController extends Controller
       $this->middleware('jwt.verify', ['except' => ['index']]);
     }
 
-    //get Section list
+    //get Cluster list
     public function index(Request $request)
     {
       $type = $request->type;
@@ -39,71 +39,71 @@ class SectionController extends Controller
     }
 
 
-    //create a Section
+    //create a Cluster
     public function store(Request $request)
     {
-      $section = new Section();
-      if($section->validate($request->all()))
+      $cluster = new Cluster();
+      if($cluster->validate($request->all()))
       {
-        $section->fill($request->all());
-        $section->status = 1;
-        $section->save();
+        $cluster->fill($request->all());
+        $cluster->status = 1;
+        $cluster->save();
 
         return response([ 'data' => [
-          'message' => 'Section was saved successfully',
-          'section' => $section
+          'message' => 'Cluster was saved successfully',
+          'cluster' => $cluster
           ]
         ], Response::HTTP_CREATED );
       }
       else
       {
-          $errors = $section->errors();// failure, get errors
+          $errors = $cluster->errors();// failure, get errors
           return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //get a Section
+    //get a Cluster
     public function show($id)
     {
-      $section = Section::find($id);
-      if($section == null)
-        throw new ModelNotFoundException("Requested section not found", 1);
+      $cluster = Cluster::find($id);
+      if($cluster == null)
+        throw new ModelNotFoundException("Requested cluster not found", 1);
       else
-        return response([ 'data' => $section ]);
+        return response([ 'data' => $cluster ]);
     }
 
 
-    //update a Section
+    //update a Cluster
     public function update(Request $request, $id)
     {
-      $section = Section::find($id);
-      if($section->validate($request->all()))
+      $cluster = Cluster::find($id);
+      if($cluster->validate($request->all()))
       {
-        $section->fill($request->except('section_code'));
-        $section->save();
+        $cluster->fill($request->except('group_code'));
+        $cluster->save();
 
         return response([ 'data' => [
-          'message' => 'Section was updated successfully',
-          'section' => $section
+          'message' => 'Cluster was updated successfully',
+          'cluster' => $cluster
         ]]);
       }
       else
       {
-        $errors = $section->errors();// failure, get errors
+        $errors = $cluster->errors();// failure, get errors
         return response(['errors' => ['validationErrors' => $errors]], Response::HTTP_UNPROCESSABLE_ENTITY);
       }
     }
 
 
-    //deactivate a Section
+    //deactivate a Cluster
     public function destroy($id)
     {
-      $section = Section::where('section_id', $id)->update(['status' => 0]);
+      $cluster = Cluster::where('group_id', $id)->update(['status' => 0]);
       return response([
         'data' => [
-          'message' => 'Section was deactivated successfully.',
-          'section' => $section
+          'message' => 'Cluster was deactivated successfully.',
+          'cluster' => $cluster
         ]
       ] , Response::HTTP_NO_CONTENT);
     }
@@ -114,23 +114,23 @@ class SectionController extends Controller
       $for = $request->for;
       if($for == 'duplicate')
       {
-        return response($this->validate_duplicate_code($request->section_id , $request->section_code));
+        return response($this->validate_duplicate_code($request->group_id , $request->group_code));
       }
     }
 
 
-    //check Section code already exists
+    //check Cluster code already exists
     private function validate_duplicate_code($id , $code)
     {
-      $section = Section::where('section_code','=',$code)->first();
-      if($section == null){
+      $cluster = Cluster::where('group_code','=',$code)->first();
+      if($cluster == null){
         return ['status' => 'success'];
       }
-      else if($section->section_id == $id){
+      else if($cluster->group_id == $id){
         return ['status' => 'success'];
       }
       else {
-        return ['status' => 'error','message' => 'Section code already exists'];
+        return ['status' => 'error','message' => 'Cluster code already exists'];
       }
     }
 
@@ -138,14 +138,13 @@ class SectionController extends Controller
     //get filtered fields only
     private function list($active = 0 , $fields = null)
     {
-        $fields = "section_name,section_id";
       $query = null;
       if($fields == null || $fields == '') {
-        $query = Section::select('*');
+        $query = Cluster::select('*');
       }
       else{
         $fields = explode(',', $fields);
-        $query = Section::select($fields);
+        $query = Cluster::select($fields);
         if($active != null && $active != ''){
           $query->where([['status', '=', $active]]);
         }
@@ -153,16 +152,16 @@ class SectionController extends Controller
       return $query->get();
     }
 
-    //search Section for autocomplete
+    //search Cluster for autocomplete
     private function autocomplete_search($search)
   	{
-  		$section_lists = Section::select('section_id','section_name')
-  		->where([['section_name', 'like', '%' . $search . '%'],]) ->get();
-  		return $section_lists;
+  		$cluster_lists = Cluster::select('group_id','group_name')
+  		->where([['group_name', 'like', '%' . $search . '%'],]) ->get();
+  		return $cluster_lists;
   	}
 
 
-    //get searched Sections for datatable plugin format
+    //get searched Clusters for datatable plugin format
     private function datatable_search($data)
     {
       $start = $data['start'];
@@ -173,22 +172,30 @@ class SectionController extends Controller
       $order_column = $data['columns'][$order['column']]['data'];
       $order_type = $order['dir'];
 
-      $section_list = Section::select('*')
-      ->where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
-      ->orderBy($order_column, $order_type)
-      ->offset($start)->limit($length)->get();
+      $cluster_list = Cluster::join('org_source', 'org_group.source_id', '=', 'org_source.source_id')
+  		->select('org_group.*', 'org_source.source_name')
+  		->where('group_code','like',$search.'%')
+  		->orWhere('group_name', 'like', $search.'%')
+  		->orWhere('source_name', 'like', $search.'%')
+  		->orderBy($order_column, $order_type)
+  		->offset($start)->limit($length)->get();
 
-      $section_count = Section::where('section_code'  , 'like', $search.'%' )
-      ->orWhere('section_name'  , 'like', $search.'%' )
-      ->count();
+  		$cluster_count = Cluster::join('org_source', 'org_group.source_id', '=', 'org_source.source_id')
+  		->where('group_code','like',$search.'%')
+  		->orWhere('group_name', 'like', $search.'%')
+  		->orWhere('source_name', 'like', $search.'%')
+  		->count();
 
       return [
           "draw" => $draw,
-          "recordsTotal" => $section_count,
-          "recordsFiltered" => $section_count,
-          "data" => $section_list
+          "recordsTotal" => $cluster_count,
+          "recordsFiltered" => $cluster_count,
+          "data" => $cluster_list
       ];
+    }
+
+    public function searchStock(Request $request){
+        print_r($request->style_no);
     }
 
 }
